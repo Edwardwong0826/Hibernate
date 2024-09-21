@@ -89,12 +89,20 @@ public class App {
     }
 
 
+    // This method is to demo hibernate N+1 problem
+    // Hibernate by default use lazy fetch type
+    // N+1 problem cannot be solved by using eager fetch type
+    // The loading fetch type is only for when to load the entity / employee but does not solve how to load the entity / employee, means cannot solve M+1 problem
+    // N+1 problem is when hibernate trying to fetch the relator information that is one-to-many association
+    // when fetch collection of customer that map by SalesRep below, it generates so many query to get the collection of customer
+    // Hibernate should be fetched by one query only
     private static void nPlusOneProblem() {
         EntityManager em = emf.createEntityManager();
         em.getTransaction().begin();
 
         SalesRep sr1 = new SalesRep("John Willis");
         SalesRep sr2 = new SalesRep("Mary Long");
+        SalesRep sr3 = new SalesRep("Edward James");
 
         sr1.addCustomer(new Customer("Frank", "Brown"));
         sr1.addCustomer(new Customer("Jane", "Terrien"));
@@ -103,6 +111,7 @@ public class App {
 
         em.persist(sr1);
         em.persist(sr2);
+        em.persist(sr3);
         em.getTransaction().commit();
         em.close();
 
@@ -111,15 +120,19 @@ public class App {
 
         TypedQuery<SalesRep> query = em.createQuery("from SalesRep", SalesRep.class);
 
-        System.out.println("1..........");
-        List<SalesRep> list = query.getResultList();
-        System.out.println("2..........");
+        System.out.println("1..........................................");
+        List<SalesRep> list = query.getResultList(); // this is +1, one time query to get all salesRep collection
+        System.out.println("2..........................................");
+
+        // If the salesRep got 100 records,getCustomers every time will generate one extra select query, so in the end it will have up to 100 query run by hibernate
+        // Suppose we should be able to select all salesRep and all of its customer by one query only, but in here hibernate couldn't, thus is N+1 problem
+        // N records <- means N select query
         for (SalesRep salesRep : list) {
-            System.out.println("3..........");
-            System.out.println(salesRep.getCustomers());
-            System.out.println("4..........");
+            System.out.println("3.....................................");
+            System.out.println(salesRep.getCustomers()); // this is N
+            System.out.println("4.....................................");
         }
-        System.out.println("5..........");
+        System.out.println("5..........................................");
         em.getTransaction().commit();
         em.close();
 
@@ -252,9 +265,9 @@ public class App {
     public static void main(String[] args) {
 //        populateCustomer();
 //        lazyorEager();
-//        nPlusOneProblem();
+        nPlusOneProblem();
 //        entityGraphAndJoinFetch();
-        batchSizeORsubselect();
+//        batchSizeORsubselect();
     }
 
 
